@@ -886,9 +886,9 @@ class TensorBoard(Callback):
             if epoch % self.histogram_freq == 0:
                 self._epoch = epoch
                 self._current_batch = 0
-                if self.merged not in self.model.test_function.fetches:
+                if epoch == 0 or self.histogram_freq > 1:
                     self.model.test_function.fetches.append(self.merged)
-                    self.model.test_function.fetch_callbacks[self.merged] = self._fetch_callback
+                    self.model.test_function.fetch_callbacks[self.merged].add(self._fetch_callback)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -896,7 +896,7 @@ class TensorBoard(Callback):
             if self.merged in self.model.test_function.fetches:
                 self.model.test_function.fetches.remove(self.merged)
             if self.merged in self.model.test_function.fetch_callbacks:
-                self.model.test_function.fetch_callbacks.pop(self.merged)
+                self.model.test_function.fetch_callbacks[self.merged].remove(self._fetch_callback)
 
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError("To visualize embeddings, embeddings_data must "

@@ -2537,10 +2537,10 @@ class Function(object):
         # dynamically get access to values from nodes not in `outputs`.
         self.fetches = [tf.identity(x) for x in self.fetches]
         # This mapping keeps track of the function that should receive the
-        # output from a fetch in `fetches`: { fetch: function(fetch_output) }
+        # output from a fetch in `fetches`: { fetch: set(function(fetch_output)) }
         # A Callback can use this to register a function with access to the
         # output values for a fetch it added.
-        self.fetch_callbacks = dict()
+        self.fetch_callbacks = defaultdict(set)
         self.session_kwargs = session_kwargs
         if session_kwargs:
             raise ValueError('Some keys in session_kwargs are not '
@@ -2604,7 +2604,8 @@ class Function(object):
     def _call_fetch_callbacks(self, fetches_output):
         for fetch, output in zip(self._fetches, fetches_output):
             if fetch in self.fetch_callbacks:
-                self.fetch_callbacks[fetch](output)
+                for callback in self.fetch_callbacks[fetch]:
+                    callback(output)
 
     def _call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
