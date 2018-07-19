@@ -2541,9 +2541,11 @@ class Function(object):
         # A Callback can use this to register a function with access to the
         # output values for a fetch it added.
         self.fetch_callbacks = dict()
+        self.run_options = session_kwargs.pop('options', None)
+        self.run_metadata = session_kwargs.pop('run_metadata', None)
         self.session_kwargs = session_kwargs
         if session_kwargs:
-            raise ValueError('Some keys in session_kwargs are not '
+            raise ValueError('These keys in session_kwargs are not '
                              'supported at this '
                              'time: %s', session_kwargs.keys())
         self._callable_fn = None
@@ -2590,6 +2592,9 @@ class Function(object):
             callable_opts.fetch.append(x.name)
         # Handle updates.
         callable_opts.target.append(self.updates_op.name)
+        # Handle run_options.
+        if self.run_options:
+            callable_opts.run_options.CopyFrom(self.run_options)
         # Create callable.
         callable_fn = session._make_callable_from_options(callable_opts)
         # Cache parameters corresponding to the generated callable, so that
@@ -2647,7 +2652,11 @@ class Function(object):
                                 feed_symbols,
                                 symbol_vals,
                                 session)
-        fetched = self._callable_fn(*array_vals)
+        if self.run_metadata is None:
+            fetched = self._callable_fn(*array_vals)
+        else:
+            fetched = self._callable_fn(*array_vals,
+                                        run_metadata=self.run_metadata)
         self._call_fetch_callbacks(fetched[-len(self._fetches):])
         return fetched[:len(self.outputs)]
 
@@ -2666,7 +2675,8 @@ class Function(object):
         fetches = self.outputs + [self.updates_op] + self.fetches
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
-                              **self.session_kwargs)
+                              options=self.run_options,
+                              run_metadata=self.run_metadata)
         self._fetches = self.fetches
         self._call_fetch_callbacks(updated[-len(self._fetches):])
         return updated[:len(self.outputs)]
