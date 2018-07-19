@@ -140,11 +140,11 @@ def fit_loop(model, f, ins,
             indices_for_conversion_to_dense.append(i)
 
     for epoch in range(initial_epoch, epochs):
+        epoch_logs = {}
         # Reset stateful metrics
         for m in model.stateful_metric_functions:
             m.reset_states()
         callbacks.on_epoch_begin(epoch)
-        epoch_logs = {}
         if steps_per_epoch is not None:
             for step_index in range(steps_per_epoch):
                 batch_logs = {}
