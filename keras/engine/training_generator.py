@@ -193,8 +193,6 @@ def evaluate_generator(model, generator,
                        verbose=0,
                        callbacks=None):
     """See docstring for `Model.evaluate_generator`."""
-    model._make_test_function()
-
     if hasattr(model, 'metrics'):
         for m in model.stateful_metric_functions:
             m.reset_states()
@@ -288,8 +286,6 @@ def predict_generator(model, generator,
                       verbose=0,
                       callbacks=None):
     """See docstring for `Model.predict_generator`."""
-    model._make_predict_function()
-
     batch_index = 0
     # todo: wait_time?
     enqueuer, generator, steps = init_generator(
