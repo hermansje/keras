@@ -37,6 +37,7 @@ def fit_generator(model,
         workers, max_queue_size,
         use_multiprocessing, shuffle, wait_time=0.01,
         steps_arg='steps_per_epoch')
+    batch_generator = get_batch_generator(generator)
 
     val_enqueuer = None
     if do_validation:
@@ -103,7 +104,7 @@ def fit_generator(model,
             callbacks.on_epoch_begin(epoch)
             batch_index = 0
             while batch_index < steps_per_epoch:
-                x, y, sample_weight = get_batch(generator)
+                x, y, sample_weight = next(batch_generator)
                 # build batch logs
                 batch_size = get_batch_size(x)
                 batch_logs = {}
@@ -186,6 +187,7 @@ def evaluate_generator(model, generator,
         generator, steps,
         workers, max_queue_size,
         use_multiprocessing, wait_time=0.01)
+    batch_generator = get_batch_generator(generator)
 
     out_labels = ['val_' + n for n in model.metrics_names]
 
@@ -216,7 +218,7 @@ def evaluate_generator(model, generator,
 
     try:
         while batch_index < steps:
-            x, y, sample_weight = get_batch(generator)
+            x, y, sample_weight = next(batch_generator)
 
             # build batch logs
             batch_size = get_batch_size(x)
@@ -269,6 +271,7 @@ def predict_generator(model, generator,
         generator, steps,
         workers, max_queue_size,
         use_multiprocessing, wait_time=0.01)
+    batch_generator = get_batch_generator(generator, require_output=False)
 
     _callbacks = []
     if verbose == 1:
@@ -303,7 +306,7 @@ def predict_generator(model, generator,
     unconcatenated_outs = []
     try:
         while batch_index < steps:
-            x, _, _ = get_batch(generator, require_output=False)
+            x, _, _ = next(batch_generator)
 
             # build batch logs
             batch_size = get_batch_size(x)
@@ -383,26 +386,27 @@ def init_generator(generator, steps,
     return enqueuer, output_generator, steps
 
 
-def get_batch(generator, require_output=True):
+def get_batch_generator(generator, require_output=True):
     # todo: might break generators that (incorrectly) return list / np.array
-    generator_output = next(generator)
-    y = sample_weight = None
-    if isinstance(generator_output, tuple):
-        if len(generator_output) == 2:
-            x, y = generator_output
-        elif len(generator_output) == 3:
-            x, y, sample_weight = generator_output
+    while True:
+        generator_output = next(generator)
+        y = sample_weight = None
+        if isinstance(generator_output, tuple):
+            if len(generator_output) == 2:
+                x, y = generator_output
+            elif len(generator_output) == 3:
+                x, y, sample_weight = generator_output
+            else:
+                raise generator_output_error(generator_output)
         else:
-            raise generator_output_error(generator_output)
-    else:
-        if require_output:
-            raise generator_output_error(generator_output)
-        else:
-            # Assumes a generator that only
-            # yields inputs (not targets and sample weights).
-            x = generator_output
+            if require_output:
+                raise generator_output_error(generator_output)
+            else:
+                # Assumes a generator that only
+                # yields inputs (not targets and sample weights).
+                x = generator_output
 
-    return x, y, sample_weight
+        yield x, y, sample_weight
 
 
 def generator_output_error(generator_output):
